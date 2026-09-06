@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Kapi Sistemi</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:Arial,sans-serif;background:linear-gradient(135deg,#1a1a2e,#16213e);min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;}
+.box{background:#fff;border-radius:26px;padding:32px 26px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+.logo{font-size:48px;margin-bottom:6px;}
+.kapi-logo{font-size:72px;margin-bottom:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));transition:filter .4s;}
+html,body{width:100%;overflow-x:hidden;}
+@media screen and (orientation:landscape){
+    body{padding:10px;}
+    .box,.kayit-box{max-width:340px;transform:scale(0.9);transform-origin:center center;}
+}
+h1{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:16px;}
+.status{padding:12px 16px;border-radius:13px;font-size:14px;font-weight:500;margin-bottom:20px;transition:background .3s,color .3s;}
+.s-conn{background:#e8f5e9;color:#2e7d32;}
+.s-wait{background:#fff9c4;color:#f57f17;}
+.s-ok{background:#c8e6c9;color:#1b5e20;}
+.s-err{background:#ffcdd2;color:#c62828;}
+.s-off{background:#f5f5f5;color:#999;}
+.acbtn{width:160px;height:160px;border-radius:80px;font-size:52px;border:none;color:#fff;cursor:pointer;transition:background .4s,transform .15s,box-shadow .3s;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.acbtn.ab-on{background:linear-gradient(135deg,#00c853,#69f0ae);box-shadow:0 6px 24px rgba(0,200,83,.4);}
+.acbtn.ab-off{background:linear-gradient(135deg,#9e9e9e,#bdbdbd);box-shadow:none;}
+.acbtn:active{transform:scale(.93);}
+.acbtn:disabled{cursor:not-allowed;}
+.kayit-box{background:#fff;border-radius:22px;padding:28px 24px;max-width:340px;width:100%;}
+.kayit-box h1{font-size:20px;color:#1a1a2e;margin-bottom:4px;}
+.kayit-sub{font-size:13px;color:#888;margin-bottom:18px;}
+.sfg{margin-bottom:12px;}
+.sfl{font-size:11px;font-weight:700;color:#667eea;margin-bottom:4px;display:block;}
+.sfi{width:100%;padding:11px 13px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;font-family:inherit;}
+.sfi:focus{border-color:#667eea;}
+.tel-wrap{display:flex;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;transition:border .2s;}
+.tel-wrap:focus-within{border-color:#667eea;}
+.tel-prefix{background:#f5f5f5;padding:11px 10px;font-size:15px;color:#555;font-weight:700;border-right:1px solid #e5e7eb;white-space:nowrap;line-height:1;}
+.tel-inp{flex:1;padding:11px 10px;font-size:15px;border:none;outline:none;font-family:inherit;background:transparent;}
+.gbtn{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:11px;cursor:pointer;font-size:16px;font-weight:700;margin-top:6px;font-family:inherit;}
+.gbtn:active{opacity:.85;}
+.gbtn:disabled{opacity:.5;cursor:not-allowed;}
+.msg{padding:10px 12px;border-radius:9px;font-size:13px;margin-bottom:12px;display:none;}
+.msg.err{background:#ffcdd2;color:#c62828;}
+.msg.ok{background:#c8e6c9;color:#2e7d32;}
+.yardim-link{display:inline-block;margin-top:14px;font-size:12px;color:#667eea;text-decoration:none;font-weight:700;border-bottom:1px dashed #667eea;padding-bottom:1px;}
+.err-page{background:#fff;border-radius:22px;padding:28px 24px;max-width:320px;width:100%;text-align:center;}
+.err-page h2{font-size:18px;color:#c62828;margin:12px 0 8px;}
+.err-page p{font-size:14px;color:#666;line-height:1.6;}
+body{transition:background 0.5s ease;}
+.nav-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.nav-btn{background:#f0f0f0;border:none;width:34px;height:34px;border-radius:50%;font-size:14px;color:#667eea;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nav-btn:active{background:#e0e0e0;}
+.nav-dots{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;flex:1;}
+.nav-dot{width:8px;height:8px;border-radius:50%;background:#ddd;transition:background .2s,transform .2s;}
+.nav-dot.active{background:#667eea;transform:scale(1.3);}
+</style>
+</head>
+<body>
+<div id="root"><div style="color:#fff;text-align:center;padding:40px;">Yukleniyor...</div></div>
+<script>
+// ================================================================
+// YAPILANDIRMA
+// ================================================================
+var MQTT_URL    = 'wss://49de32fbb15f4b4ead7a5919fb255492.s1.eu.hivemq.cloud:8884/mqtt';
+var MQTT_USER   = 'ESP8266_buton';
+var MQTT_PASS   = 'EDCrfv01';
+var YARDIM_LINK = 'https://irfanardic.github.io/deneme1/yardim.html';
+
+function topics(chipId){
+    var p='esp8266/kapi/'+chipId+'/';
+    return {
+        komut     : p+'komut',
+        kayit     : p+'kayit',
+        yanitPfx  : p+'yanit/',
+        kayitYanit: p+'kayit/yanit/',
+        durum     : p+'durum'
+    };
+}
+
+// Kütüphane Yükleme
+var s1=document.createElement('script');
+s1.src='https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js';
+s1.onload=function(){
+    var s2=document.createElement('script');
+    s2.src='motor.js';
+    s2.onload=function(){ baslat(); };
+    s2.onerror=function(){ baslat(); };
+    document.head.appendChild(s2);
+};
+s1.onerror=function(){
+    document.getElementById('root').innerHTML=
+        '<div class="box"><div class="logo">&#128683;</div>'+
+        '<h1>Baglanti kurulamadi</h1>'+
+        '<p style="color:#888;font-size:13px;">Internet baglantinizi kontrol edin.</p></div>';
+};
+document.head.appendChild(s1);
+
+function R(id){ return document.getElementById(id); }
+
+function getDid(){
+    var d=localStorage.getItem('did');
+    if(!d || d.length !== 24){
+        d='xxxxxxxxxxxxxxxxxxxxxxxx'.replace(/x/g,function(){ return(Math.random()*16|0).toString(16); });
+        localStorage.setItem('did',d);
+    }
+    return d;
+}
+
+function gP(k){ return new URLSearchParams(window.location.search).get(k)||''; }
+function lsKey(alan,chipId,slot){ return 'kapi_'+alan+'_'+chipId+'_'+slot; }
+
+function sistemKaydet(chipId,slot,secret,sid){
+    localStorage.setItem(lsKey('secret',chipId,slot),secret);
+    localStorage.setItem(lsKey('sid',chipId,slot),sid||'Kapi Sistemi');
+    var liste=sistemListesiOku();
+    var varMi=liste.some(function(s){ return s.chipId===chipId&&s.slot===slot; });
+    if(!varMi){
+        liste.push({chipId:chipId,slot:slot});
+        localStorage.setItem('kapi_sistem_listesi',JSON.stringify(liste));
+    }
+}
+
+function sistemListesiOku(){
+    try{
+        var raw=localStorage.getItem('kapi_sistem_listesi');
+        return raw?JSON.parse(raw):[];
+    }catch(e){ return []; }
+}
+
+function tumSistemleriGetir(){
+    var liste=sistemListesiOku();
+    var sonuc=[];
+    var gecerliListe=[];
+    for(var i=0;i<liste.length;i++){
+        var s=liste[i];
+        var secret=localStorage.getItem(lsKey('secret',s.chipId,s.slot));
+        var sid   =localStorage.getItem(lsKey('sid',s.chipId,s.slot))||'Kapi Sistemi';
+        if(secret){
+            sonuc.push({chipId:s.chipId,slot:s.slot,secret:secret,sid:sid});
+            gecerliListe.push(s);
+        }
+    }
+    if(gecerliListe.length!==liste.length){
+        localStorage.setItem('kapi_sistem_listesi',JSON.stringify(gecerliListe));
+    }
+    return sonuc;
+}
+
+function sidRenkUret(sid){
+    var hash=0;
+    for(var i=0;i<sid.length;i++){
+        hash=sid.charCodeAt(i)+((hash<<5)-hash);
+        hash=hash&hash; 
+    }
+    var h=Math.abs(hash)%360; 
+    var renk1='hsl('+h+',55%,22%)';
+    var renk2='hsl('+((h+40)%360)+',60%,14%)';
+    return 'linear-gradient(135deg,'+renk1+','+renk2+')';
+}
+
+function esc(s){
+    if(!s) return '';
+    return String(s).replace(/[&<>"]/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+}
+
+function chipIdRenkUret(chipId){
+    var hash=0;
+    for(var i=0;i<chipId.length;i++){
+        hash=chipId.charCodeAt(i)+((hash<<5)-hash);
+        hash=hash&hash;
+    }
+    var h=Math.abs(hash)%360;
+    return 'hsl('+h+',70%,50%)';
+}
+
+function kapiSimgesiOlustur(renk){
+    return '<div class="kapi-logo" style="display:flex;justify-content:center;">' +
+        '<svg width="72" height="72" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<rect x="5" y="2" width="14" height="20" rx="1.5" fill="'+renk+'"/>' +
+        '<circle cx="15" cy="12" r="1.3" fill="#fff"/>' +
+        '</svg></div>';
+}
+
+function kapiAcildiSesi(){
+    try{
+        var ctx=new(window.AudioContext||window.webkitAudioContext)();
+        function ton(frekans,baslangic,sure){
+            var osc=ctx.createOscillator(),gain=ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type='sine';
+            osc.frequency.setValueAtTime(frekans,ctx.currentTime+baslangic);
+            gain.gain.setValueAtTime(0,ctx.currentTime+baslangic);
+            gain.gain.linearRampToValueAtTime(0.4,ctx.currentTime+baslangic+0.01);
+            gain.gain.linearRampToValueAtTime(0,ctx.currentTime+baslangic+sure);
+            osc.start(ctx.currentTime+baslangic);
+            osc.stop(ctx.currentTime+baslangic+sure+0.05);
+        }
+        ton(880,0.0,0.15);
+        ton(1320,0.2,0.2);
+        setTimeout(function(){ try{ctx.close();}catch(e){} },1000);
+    }catch(e){}
+}
+
+// ================================================================
+// MQTT
+// ================================================================
+var _mqCl=null, _conn=false;
+
+function mqttBaglan(onHazir){
+    if(_mqCl&&_conn){ if(onHazir) onHazir(); return; }
+    if(_mqCl){ try{_mqCl.end(true);}catch(e){} _mqCl=null; _conn=false; }
+    _mqCl=mqtt.connect(MQTT_URL,{
+        clientId  : 'web_'+Math.random().toString(36).substring(2,12),
+        username  : MQTT_USER,
+        password  : MQTT_PASS,
+        reconnectPeriod: 4000,
+        connectTimeout : 15000,
+        keepalive : 30,
+        clean     : true
+    });
+    _mqCl.on('connect',function(){ _conn=true; if(onHazir) onHazir(); });
+    _mqCl.on('error',  function(){ _conn=false; });
+    _mqCl.on('close',  function(){ _conn=false; });
+}
+
+// ================================================================
+// ANA BAŞLANGIÇ
+// ================================================================
+function baslat(){
+    var L = gP('l'); // Link
+    var H = gP('h'); // 64 Haneli Hash
+    var C = gP('id'); // ESP Chip ID
+
+    var SLOT    = gP('s');
+    var SECRET  = gP('k');
+    var SLOT_INT= parseInt(SLOT,10);
+
+    if(L.length===16 && H.length===64 && C.length>0){
+        renderKayit(L, H, C);
+    } else if(SLOT.length>0&&SECRET.length>0&&!isNaN(SLOT_INT)){
+        var chipId=gP('c')||'';
+        if(!chipId){
+            renderHata('Sistem bilgisi eksik. Lutfen davetiye linkinizi tekrar kullanin.');
+            return;
+        }
+        var mevcutSecret=localStorage.getItem(lsKey('secret',chipId,SLOT_INT));
+        if(!mevcutSecret){
+            sistemKaydet(chipId,SLOT_INT,SECRET,localStorage.getItem(lsKey('sid',chipId,SLOT_INT))||'Kapi Sistemi');
+        }
+        renderSistemGezgini(chipId,SLOT_INT);
+    } else {
+        var kayitliSistemler=tumSistemleriGetir();
+        if(kayitliSistemler.length>0){
+            renderSistemGezgini(kayitliSistemler[0].chipId,kayitliSistemler[0].slot);
+        } else {
+            renderTest();
+        }
+    }
+}
+
+function renderTest(){
+    R('root').innerHTML=
+        '<div class="box">'+
+        '<div class="logo">&#128272;</div>'+
+        '<h1>Kapi Sistemi</h1>'+
+        '<div class="status s-off">Sistem aktif</div>'+
+        '</div>';
+}
+
+function renderHata(msg){
+    R('root').innerHTML=
+        '<div class="err-page">'+
+        '<div style="font-size:52px">&#128683;</div>'+
+        '<h2>Erisim Hatasi</h2><p>'+esc(msg)+'</p></div>';
+}
+
+function renderDavetiyeHatasi(msg){
+    R('root').innerHTML=
+        '<div class="box">'+
+        '<div class="logo">&#9888;&#65039;</div>'+
+        '<h1 style="color:#e65100;">Gecersiz Davetiye</h1>'+
+        '<p style="font-size:14px;color:#666;line-height:1.6;margin-top:8px;">'+esc(msg)+'</p>'+
+        '<p style="font-size:12px;color:#aaa;margin-top:14px;" id="kapanma">Bu sayfa 5 saniye sonra kapanacak.</p>'+
+        '</div>';
+    var kalan=5;
+    var timer=setInterval(function(){
+        kalan--;
+        var el=R('kapanma');
+        if(el) el.textContent='Bu sayfa '+kalan+' saniye sonra kapanacak.';
+        if(kalan<=0){
+            clearInterval(timer);
+            document.body.innerHTML='<div style="color:#fff;text-align:center;padding:40px;font-family:Arial;font-size:14px;">Sayfa kapatildi.</div>';
+        }
+    },1000);
+}
+
+// ================================================================
+// KAYIT SAYFASI (Yeni: Kripto Hash ile Telefon Doğrulama)
+// ================================================================
+function renderKayit(invLink, hashStr, chipId){
+    var did=getDid();
+
+    R('root').innerHTML=
+        '<div class="kayit-box">'+
+        '<h1>&#128272; Kapi Sistemine Kayit</h1>'+
+        '<p class="kayit-sub">Bilgilerinizi girerek kaydinizi tamamlayin.</p>'+
+        '<div class="msg" id="msg"></div>'+
+        '<div class="sfg">'+
+            '<label class="sfl">AD SOYAD</label>'+
+            '<input id="ad" class="sfi" type="text" maxlength="19" placeholder="Adinizi girin">'+
+        '</div>'+
+        '<div class="sfg">'+
+            '<label class="sfl">TELEFON (Davetiyenin gonderildigi numara)</label>'+
+            '<div class="tel-wrap">'+
+                '<span class="tel-prefix">+90</span>'+
+                '<input id="tel" class="tel-inp" type="tel" maxlength="10" inputmode="numeric" placeholder="5xx xxx xx xx">'+
+            '</div>'+
+        '</div>'+
+        '<button class="gbtn" id="kayitBtn" onclick="kayitGonder()">&#9989; Kayit Ol</button>'+
+        '<a class="yardim-link" href="'+YARDIM_LINK+'" target="_blank">&#10067; Nasil kayit olurum?</a>'+
+        '</div>';
+
+    R('ad').focus();
+    R('ad').addEventListener('keypress', function(e){ if(e.key==='Enter') R('tel').focus(); });
+    R('tel').addEventListener('keypress',function(e){ if(e.key==='Enter') kayitGonder(); });
+    R('tel').addEventListener('input',   function(){ this.value=this.value.replace(/[^0-9]/g,''); });
+
+    // Chip ID URL'den geldiği için artık wildcard ile dinlemeye gerek yok!
+    mqttBaglan(function(){});
+
+    window.kayitGonder=function(){
+        var ad    = R('ad').value.trim();
+        var tel   = R('tel').value.trim();
+        var tamTel= '+90' + tel;
+
+        if(ad.length<2){ showMsg('Ad soyad girin!',true); return; }
+        if(tel.length<10){ showMsg('10 haneli numara girin',true); return; }
+
+        var btn=R('kayitBtn');
+        if(btn) btn.disabled=true;
+        showMsg('Kayit yapiliyor...',false);
+
+        mqttBaglan(function(){
+            _gonderKayit(chipId, invLink, hashStr, ad, tamTel, did, btn);
+        });
+    };
+
+    function _gonderKayit(chipId, invLink, hashStr, ad, tel, did, btn){
+        var T = topics(chipId);
+        var yanit_topic = T.kayitYanit + did;
+        var zaman_asimi = null;
+
+        _mqCl.subscribe(yanit_topic, {qos:1}, function(err){
+            if(err){ showMsg('Baglanti hatasi, tekrar deneyin',true); if(btn) btn.disabled=false; return; }
+
+            // Yeni: H (Hash) parametresi ESP'ye gönderiliyor
+            var paket = JSON.stringify({link: invLink, h: hashStr, ad: ad, tel: tel, did: did});
+            
+            _mqCl.publish(T.kayit, paket, {qos:1}, function(e){
+                if(e){ showMsg('Gonderim hatasi!',true); if(btn) btn.disabled=false; return; }
+                showMsg('Bekleniyor...',false);
+                zaman_asimi=setTimeout(function(){
+                    showMsg('Yanit alinamadi, tekrar deneyin.',true);
+                    if(btn) btn.disabled=false;
+                },15000);
+            });
+
+            _mqCl.on('message', function yanit_dinle(topic, payload){
+                if(topic !== yanit_topic) return;
+                if(zaman_asimi) clearTimeout(zaman_asimi);
+                try {
+                    var d = JSON.parse(payload.toString());
+                    if(d.ok){
+                        sistemKaydet(chipId, d.slot, d.secret, d.sid || 'Kapi Sistemi');
+                        showMsg('Kayit basarili! Yonlendiriliyorsunuz...',false);
+                        setTimeout(function(){
+                            window.location.href = window.location.pathname + '?s=' + d.slot + '&k=' + encodeURIComponent(d.secret) + '&c=' + chipId;
+                        },1500);
+                    } else {
+                        if(d.mesaj && d.mesaj.indexOf('Gecersiz') >= 0){
+                            renderDavetiyeHatasi('Bu davetiye bu telefon numarasi icin gecerli degil!');
+                        } else {
+                            showMsg(d.mesaj || 'Kayit hatasi!',true);
+                            if(btn) btn.disabled=false;
+                        }
+                        _mqCl.removeListener('message', yanit_dinle);
+                    }
+                } catch(e) {
+                    showMsg('Beklenmeyen yanit, tekrar deneyin.',true);
+                    if(btn) btn.disabled=false;
+                    _mqCl.removeListener('message', yanit_dinle);
+                }
+            });
+        });
+    }
+
+    function showMsg(txt,isErr){
+        var el=R('msg'); if(!el) return;
+        el.textContent=txt;
+        el.className='msg '+(isErr?'err':'ok');
+        el.style.display='block';
+    }
+}
+
+// ================================================================
+// SİSTEM GEZGİNİ
+// ================================================================
+var _sistemler   = []; 
+var _aktifIndex  = 0;
+var _did='', _yanit='', _T=null, _espOnline=false;
+var _touchStartX=0, _touchEndX=0;
+
+function renderSistemGezgini(baslangicChipId,baslangicSlot){
+    _did = getDid();
+    _sistemler = tumSistemleriGetir();
+
+    if(_sistemler.length===0){
+        renderHata('Kayitli sistem bulunamadi. Lutfen davetiye linkinizi kullanin.');
+        return;
+    }
+
+    _aktifIndex = 0;
+    for(var i=0;i<_sistemler.length;i++){
+        if(_sistemler[i].chipId===baslangicChipId&&_sistemler[i].slot===baslangicSlot){
+            _aktifIndex=i; break;
+        }
+    }
+
+    ciziGezgini();
+    sistemeGec(_aktifIndex);
+}
+
+function ciziGezgini(){
+    var cokluMu = _sistemler.length>1;
+
+    var html =
+        '<div class="box" id="sysBox">'+
+        (cokluMu ? '<div class="nav-row">'+
+            '<button class="nav-btn" id="navPrev" onclick="onceki()">&#10094;</button>'+
+            '<div class="nav-dots" id="navDots"></div>'+
+            '<button class="nav-btn" id="navNext" onclick="sonraki()">&#10095;</button>'+
+        '</div>' : '')+
+        '<div id="kapiLogoWrap">'+kapiSimgesiOlustur('#8d6e63')+'</div>'+
+        '<h1 id="sysTitle">Yukleniyor...</h1>'+
+        '<div class="status s-wait" id="statBox">&#9203; Baglaniyor...</div>'+
+        '<button class="acbtn ab-off" id="acBtn" onclick="kapiAc()" disabled>&#128275;</button>'+
+        '</div>';
+
+    R('root').innerHTML = html;
+
+    if(cokluMu){
+        var dotsEl = R('navDots');
+        var dotsHtml = '';
+        for(var i=0;i<_sistemler.length;i++){
+            dotsHtml += '<span class="nav-dot'+(i===_aktifIndex?' active':'')+'" data-idx="'+i+'"></span>';
+        }
+        dotsEl.innerHTML = dotsHtml;
+
+        var box = R('sysBox');
+        box.addEventListener('touchstart',function(e){ _touchStartX=e.changedTouches[0].screenX; },{passive:true});
+        box.addEventListener('touchend',function(e){
+            _touchEndX=e.changedTouches[0].screenX;
+            var fark=_touchEndX-_touchStartX;
+            if(Math.abs(fark)>50){
+                if(fark<0) sonraki(); else onceki();
+            }
+        },{passive:true});
+    }
+}
+
+function onceki(){
+    if(_sistemler.length<=1) return;
+    _aktifIndex = (_aktifIndex-1+_sistemler.length)%_sistemler.length;
+    sistemeGec(_aktifIndex);
+}
+function sonraki(){
+    if(_sistemler.length<=1) return;
+    _aktifIndex = (_aktifIndex+1)%_sistemler.length;
+    sistemeGec(_aktifIndex);
+}
+
+function sistemeGec(idx){
+    var s = _sistemler[idx];
+    if(!s) return;
+
+    _T     = topics(s.chipId);
+    _yanit = _T.yanitPfx+_did;
+    _espOnline = false;
+
+    document.body.style.background = sidRenkUret(s.sid);
+
+    var logoWrap = R('kapiLogoWrap');
+    if(logoWrap) logoWrap.innerHTML = kapiSimgesiOlustur(chipIdRenkUret(s.chipId));
+
+    var t = R('sysTitle');
+    if(t) t.textContent = s.sid;
+
+    var dots = document.querySelectorAll('.nav-dot');
+    dots.forEach(function(d,i){ d.classList.toggle('active', i===idx); });
+
+    setStat('s-wait','&#9203; Baglaniyor...');
+    btnOn(false);
+
+    mqttBaglanButon(s);
+}
+
+function setStat(cls,html){
+    var el=R('statBox');
+    if(el){ el.className='status '+cls; el.innerHTML=html; }
+}
+function btnOn(ok){
+    var b=R('acBtn');
+    if(b){ b.disabled=!ok; b.classList.toggle('ab-on',ok); b.classList.toggle('ab-off',!ok); }
+}
+
+var _mesajDinleyici = null;
+
+function mqttBaglanButon(sistem){
+    mqttBaglan(function(){
+        if(_mesajDinleyici){ _mqCl.removeListener('message',_mesajDinleyici); }
+
+        _mqCl.subscribe(_yanit,   {qos:0});
+        _mqCl.subscribe(_T.durum, {qos:1},function(err){
+            if(err){ setStat('s-err','&#10060; Baglanti kurulamadi'); return; }
+            setTimeout(function(){
+                if(!_espOnline){
+                    setStat('s-err','&#10060; Sistem su an cevrimdisi');
+                    btnOn(false);
+                }
+            },6000);
+        });
+
+        _mesajDinleyici = function(topic,payload){
+            if(topic===_T.durum){
+                try{
+                    var d=JSON.parse(payload.toString());
+                    if(d.durum==='online'){
+                        _espOnline=true;
+                        if(d.sid){
+                            var t=R('sysTitle');
+                            if(t) t.textContent=d.sid;
+                            var s=_sistemler[_aktifIndex];
+                            if(s&&s.sid!==d.sid){
+                                s.sid=d.sid;
+                                localStorage.setItem(lsKey('sid',s.chipId,s.slot),d.sid);
+                                document.body.style.background = sidRenkUret(d.sid);
+                            }
+                        }
+                        setStat('s-conn','&#9989; Hazir — Butona basin');
+                        btnOn(true);
+                    } else {
+                        _espOnline=false;
+                        setStat('s-err','&#10060; Sistem su an cevrimdisi');
+                        btnOn(false);
+                    }
+                }catch(e){}
+                return;
+            }
+
+            if(topic===_yanit){
+                try{
+                    var d2=JSON.parse(payload.toString());
+                    if(d2.komut==='kapi_acildi'){
+                        kapiAcildiSesi();
+                        setStat('s-ok','&#9989; Kapi Acildi!');
+                        R('acBtn').innerHTML='&#9989;';
+                        setTimeout(function(){
+                            setStat('s-conn','&#9989; Hazir — Butona basin');
+                            R('acBtn').innerHTML='&#128275;';
+                            btnOn(true);
+                        },2500);
+                    } else {
+                        setStat('s-err','&#10060; Islem tamamlanamadi');
+                        btnOn(true);
+                    }
+                }catch(e){}
+            }
+        };
+
+        _mqCl.on('message',_mesajDinleyici);
+
+        _mqCl.on('close',function(){
+            _conn=false; _espOnline=false;
+            setStat('s-off','&#9203; Baglanti bekleniyor...');
+            btnOn(false);
+        });
+        _mqCl.on('reconnect',function(){
+            setStat('s-wait','&#9203; Yeniden baglaniyor...');
+            btnOn(false);
+        });
+        _mqCl.on('error',function(){
+            _espOnline=false;
+            setStat('s-err','&#10060; Baglanti sorunu');
+            btnOn(false);
+        });
+    });
+}
+
+function kapiAc(){
+    var s = _sistemler[_aktifIndex];
+    if(!s||!_mqCl||!_conn||!_espOnline){
+        setStat('s-err','&#10060; Sistem hazir degil');
+        return;
+    }
+    setStat('s-wait','&#9203; Gonderiliyor...');
+    btnOn(false);
+
+    var paket=JSON.stringify({k:s.secret,s:s.slot,d:_did});
+    _mqCl.publish(_T.komut,paket,{qos:1},function(err){
+        if(err){ setStat('s-err','&#10060; Gonderim hatasi!'); btnOn(true); }
+    });
+
+    setTimeout(function(){
+        var el=R('statBox');
+        if(el&&el.className.indexOf('s-wait')>=0){
+            setStat('s-err','&#10060; Yanit alinamadi');
+            _espOnline=false; btnOn(false);
+        }
+    },8000);
+}
+</script>
+</body>
+</html>

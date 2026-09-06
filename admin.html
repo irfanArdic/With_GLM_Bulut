@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulut Admin Panel</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
+body{background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px;}
+.box{background:#16213e;padding:20px;border-radius:12px;width:100%;max-width:800px;margin-bottom:20px;}
+input,select{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:1px solid #444;background:#0f172a;color:#fff;}
+button{padding:10px 15px;background:#667eea;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin:5px;}
+button:disabled{opacity:0.5;}
+.kart{background:#fff;color:#000;border-radius:8px;padding:10px;margin:5px 0;display:flex;justify-content:space-between;align-items:center;}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);justify-content:center;align-items:center;}
+.modal-content{background:#fff;color:#000;padding:20px;border-radius:12px;width:90%;max-width:400px;}
+</style>
+</head>
+<body>
+
+<div class="box" id="loginBox">
+    <h2>🌐 Bulut Yönetim Paneli</h2>
+    <p style="font-size:12px;color:#aaa;margin-bottom:10px;">ESP8266 Cihaz ID (Örn: 00AB253B)</p>
+    <input type="text" id="chipIdInput" placeholder="Sistem ID">
+    <input type="password" id="passInput" placeholder="Admin Şifre">
+    <button onclick="connectMQTT()">Bağlan</button>
+</div>
+
+<div class="box" id="panelBox" style="display:none;">
+    <h2 id="sysTitle">Yükleniyor...</h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button onclick="getList(0)">Listeyi Yenile</button>
+    </div>
+    <div id="userList" style="margin-top:15px;"></div>
+</div>
+
+<div class="modal" id="userModal">
+    <div class="modal-content">
+        <h3 id="mSlot">#0001</h3>
+        <input type="text" id="mAd" placeholder="Ad Soyad">
+        <input type="text" id="mTel" placeholder="Telefon (532...)" maxlength="13">
+        <select id="mLok1"><option value="1">1. Blok</option><option value="2">2. Blok</option></select>
+        <select id="mLok2"><option value="1">1</option><option value="2">2</option></select>
+        <select id="mKapi"><option value="1">1. Kapı</option><option value="2">2. Kapı</option></select>
+        <select id="mRol"><option value="0">Sakin</option><option value="1">Personel</option></select>
+        <input type="text" id="mLink" placeholder="Link" readonly style="background:#eee;">
+        <button onclick="generateLink()">Link Oluştur</button>
+        <button onclick="saveInvite()">Kaydet</button>
+        <button onclick="deleteUser()" style="background:#f44336;">Sil</button>
+        <button onclick="closeModal()" style="background:#888;">Kapat</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script>
+let client = null;
+let chipId = "";
+let adminPass = "";
+let reqId = 0;
+let currentSlot = -1;
+
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function connectMQTT() {
+    chipId = document.getElementById('chipIdInput').value.trim();
+    adminPass = document.getElementById('passInput').value.trim();
+    if(!chipId || !adminPass) { alert("ID ve Şifre girin!"); return; }
+
+    document.getElementById('panelBox').style.display = 'block';
+    document.getElementById('loginBox').style.display = 'none';
+
+    client = mqtt.connect('wss://49de32fbb15f4b4ead7a5919fb255492.s1.eu.hivemq.cloud:8884/mqtt', {
+        clientId: 'admin_' + Math.random().toString(36).substring(2),
+        username: 'ESP8266_buton',
+        password: 'EDCrfv01'
+    });
+
+    client.on('connect', () => {
+        document.getElementById('sysTitle').innerText = "Bağlandı: " + chipId;
+        client.subscribe('esp8266/kapi/' + chipId + '/admin/yanit/#');
+        getList(0);
+    });
+
+    client.on('message', (topic, message) => {
+        const msgStr = message.toString();
+        try {
+            const data = JSON.parse(msgStr);
+            handleResponse(data);
+        } catch(e) {}
+    });
+}
+
+async function sendCommand(cmdObj) {
+    const ts = Math.floor(Date.now() / 1000);
+    const auth = await sha256(adminPass + ts);
+    cmdObj.ts = ts;
+    cmdObj.auth = auth;
+    cmdObj.reqId = (++reqId).toString();
+    
+    client.publish('esp8266/kapi/' + chipId + '/admin/komut', JSON.stringify(cmdObj));
+}
+
+function handleResponse(data) {
+    // Basit yanıt işleme (Liste veya Modsal)
+    if(Array.isArray(data)) {
+        let h = "";
+        data.forEach(u => {
+            let dc = u.aktif ? (u.kayitli ? 'dok' : 'dy') : 'dbs';
+            h += `<div class='kart'><div>#${String(u.slot+1).padStart(4,'0')} - ${u.ad} ${u.tel}</div><button onclick='openModal(${u.slot})'>Düzenle</button></div>`;
+        });
+        document.getElementById('userList').innerHTML = h;
+    } else if(data.link) {
+        document.getElementById('mLink').value = data.link;
+    } else if(data.fullLink) {
+        document.getElementById('mLink').value = data.fullLink;
+        alert("Kaydedildi!");
+    } else if(data.ok && !data.link) {
+        alert("İşlem başarılı!");
+        closeModal();
+        getList(0);
+    }
+}
+
+function getList(start) { sendCommand({cmd:"get_list", start:start, count:16}); }
+
+async function openModal(slot) {
+    currentSlot = slot;
+    document.getElementById('userModal').style.display = 'flex';
+    // Kullanıcı verisini çek
+    const ts = Math.floor(Date.now() / 1000);
+    const auth = await sha256(adminPass + ts);
+    client.publish('esp8266/kapi/' + chipId + '/admin/komut', JSON.stringify({cmd:"get_user", i:slot, ts:ts, auth:auth, reqId:(++reqId).toString()}));
+    
+    // Basitçe default değerleri yükle (Gerçek projede handleResponse içine modal doldurma mantığı eklenebilir)
+    document.getElementById('mLink').value = "";
+}
+
+function generateLink() { sendCommand({cmd:"invite_generate"}); }
+
+function saveInvite() {
+    sendCommand({
+        cmd:"invite_save",
+        i: currentSlot,
+        link: document.getElementById('mLink').value,
+        tel: document.getElementById('mTel').value,
+        lok1: document.getElementById('mLok1').value,
+        lok2: document.getElementById('mLok2').value,
+        kapi: document.getElementById('mKapi').value,
+        rol: document.getElementById('mRol').value,
+        basSaat: 255, bitSaat: 255, gun: 31, ay: 12, yil: 127
+    });
+}
+
+function deleteUser() {
+    sendCommand({cmd:"delete_user", i: currentSlot});
+}
+
+function closeModal() { document.getElementById('userModal').style.display = 'none'; }
+</script>
+</body>
+</html>
