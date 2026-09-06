@@ -51,14 +51,17 @@ button:hover{background:#5568d3;}
 </div>
 
 <div class="box" id="panelBox" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
         <h2 id="sysTitle" style="margin:0;">Yükleniyor...</h2>
-        <button onclick="getList(0)">Listeyi Yenile</button>
+        <div style="display:flex;gap:5px;">
+            <button class="btn-green" onclick="findEmptySlot()">➕ Yeni Kullanıcı Ekle</button>
+            <button onclick="getList(currentStart)">🔄 Yenile</button>
+        </div>
     </div>
     <div id="userList"></div>
     <div style="text-align:center;margin-top:15px;">
-        <button class="btn-gray" onclick="getList(currentStart - 8)" id="prevBtn">Geri</button>
-        <button class="btn-gray" onclick="getList(currentStart + 8)" id="nextBtn">İleri</button>
+        <button class="btn-gray" onclick="getList(currentStart - 8)" id="prevBtn">⬅ Geri</button>
+        <button class="btn-gray" onclick="getList(currentStart + 8)" id="nextBtn">İleri ➡</button>
     </div>
 </div>
 
@@ -92,7 +95,7 @@ button:hover{background:#5568d3;}
         
         <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-top:15px;">
             <button class="btn-green" onclick="generateLink()">🔗 Link Oluştur</button>
-            <button class="btn-green" onclick="saveInvite()">💾 Kaydet / Güncelle</button>
+            <button class="btn-green" onclick="saveInvite()">💾 Kaydet</button>
             <button class="btn-red" onclick="deleteUser()">🗑️ Sil</button>
             <button class="btn-gray" onclick="closeModal()">✖ Kapat</button>
         </div>
@@ -110,6 +113,7 @@ let reqId = 0;
 let currentStart = 0;
 let currentSlot = -1;
 let pendingAction = null;
+let lastList = [];
 
 // Topoloji Select'lerini Doldur
 for(let i=1; i<=15; i++) document.getElementById('mLok1').innerHTML += `<option value="${i}">${i}. Blok</option>`;
@@ -169,12 +173,15 @@ async function sendCommand(cmdObj, action) {
 
 function handleResponse(data) {
     if(pendingAction === 'list' && Array.isArray(data)) {
+        lastList = data;
         let h = "";
         if(data.length === 0) h = "<div style='text-align:center;color:#aaa;'>Kullanıcı bulunamadı.</div>";
         data.forEach(u => {
             let dc = u.aktif ? (u.kayitli ? 'dok' : 'dy') : 'dbs';
             let adStr = u.ad ? u.ad : 'Boş Slot';
-            h += `<div class='kart'><div class='kart-info'><div class='dot ${dc}'></div><div class='kno'>#${String(u.slot+1).padStart(4,'0')}</div><div><div class='kad'>${adStr}</div><div class='ktel'>${u.tel ? '+90'+u.tel : ''}</div></div></div><button onclick='openModal(${u.slot})'>Düzenle</button></div>`;
+            let btnText = u.aktif ? "Düzenle" : "Ekle";
+            let btnClass = u.aktif ? "" : "btn-green";
+            h += `<div class='kart'><div class='kart-info'><div class='dot ${dc}'></div><div class='kno'>#${String(u.slot+1).padStart(4,'0')}</div><div><div class='kad'>${adStr}</div><div class='ktel'>${u.tel ? '+90'+u.tel : ''}</div></div></div><button class='${btnClass}' onclick='openModal(${u.slot})'>${btnText}</button></div>`;
         });
         document.getElementById('userList').innerHTML = h;
         document.getElementById('prevBtn').disabled = currentStart === 0;
@@ -218,6 +225,20 @@ function getList(start) {
     if(start < 0) start = 0;
     currentStart = start;
     sendCommand({cmd:"get_list", start:start, count:8}, 'list');
+}
+
+function findEmptySlot() {
+    let emptySlot = lastList.find(u => !u.aktif);
+    if(emptySlot) {
+        openModal(emptySlot.slot);
+    } else {
+        showToast("Bu sayfada boş slot yok, sonraki sayfaya geçiliyor...");
+        getList(currentStart + 8);
+        setTimeout(() => {
+            emptySlot = lastList.find(u => !u.aktif);
+            if(emptySlot) openModal(emptySlot.slot);
+        }, 2000);
+    }
 }
 
 function openModal(slot) {
