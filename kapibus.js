@@ -12,7 +12,7 @@ const Kapibus = {
         data.set(this.strToBytes(link), 0);
         data.set(this.strToBytes(deviceID), link.length);
         const hash = await this.sha256(data);
-        return hash.slice(0, 8); // 64 Bit
+        return hash.slice(0, 8); // 64 Bit (8 Byte)
     },
 
     async generateMAC(didBase, data, macLen) {
@@ -76,5 +76,43 @@ const Kapibus = {
             if (calculatedMac[i] !== receivedMac[i]) { match = false; break; }
         }
         return match ? cmd : -1; // 0x04 (Açıldı) veya 0x05 (Reddedildi)
+    },
+
+    // 64 Byte Tam Kayıt Paketi Üretici (Kullanıcı -> ESP)
+    async buildRegisterPacket(slot, didBase, blok, daire, kapi, rol, telStr, adStr, timestamp) {
+        // 1. Payload (57 Byte)
+        const payload = new Uint8Array(57);
+        payload[0] = 0x80 | (slot & 0x7F); // Komut: Admin/Write + Slot
+        payload[1] = 0x07;                   // Flags: FLAG_VALID(1) + FLAG_AKTIF(2) + FLAG_KAYITLI(4)
+        payload[2] = blok & 0xFF;
+        payload[3] = daire & 0xFF;
+        payload[4] = ((rol & 0x03) << 6) | (((kapi - 1) & 0x03) << 4); // Rol ve Kapı aynı byte'da
+        
+        payload[5] = 0xFF; // Başlangıç Saati (Süresiz)
+        payload[6] = 0xFF; // Bitiş Saati (Süresiz)
+        
+        // Telefon (14 Byte)
+        const telBytes = this.strToBytes(telStr);
+        payload.set(telBytes, 7);
+        
+        // İsim (24 Byte)
+        const adBytes = this.strToBytes(adStr);
+        payload.set(adBytes, 21);
+        
+        // DID_Base (8 Byte)
+        payload.set(didBase, 45);
+        
+        // Timestamp (4 Byte)
+        const dv = new DataView(payload.buffer);
+        dv.setUint32(53, timestamp);
+
+        // 2. MAC Üret (7 Byte): SHA256(DID_Base + Payload)
+        const mac = await this.generateMAC(didBase, payload, 7);
+
+        // 3. Paketi Birleştir (64 Byte)
+        const packet = new Uint8Array(64);
+        packet.set(payload, 0);
+        packet.set(mac, 57);
+        return packet;
     }
 };
