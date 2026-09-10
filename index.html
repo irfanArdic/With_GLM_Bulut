@@ -3,30 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Kapi Sistemi</title>
+<title>Kayıt Ol</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
 body{background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
 .box{background:#16213e;padding:30px;border-radius:16px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
 h2{color:#667eea;margin-bottom:20px;}
-.status{padding:12px;border-radius:8px;font-size:14px;font-weight:bold;margin-bottom:20px;}
-.s-off{background:#f44336;color:#fff;}
-.s-wait{background:#ff9800;color:#fff;}
-.s-ok{background:#4caf50;color:#fff;}
-.btn{width:100%;padding:15px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer;margin-top:10px;}
-.btn:disabled{opacity:0.5;cursor:not-allowed;}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:8px;z-index:9999;font-size:14px;display:none;}
+input, select{width:100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #444; background: #0f172a; color: #fff; font-size: 14px;}
+.row{display: flex; gap: 10px;}
+.col{flex: 1;}
+button{width: 100%; padding: 14px; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+button:disabled{opacity:0.5;}
+.status{padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none;}
+.s-ok{background:#4caf50;color:#fff;display:block;}
+.s-off{background:#f44336;color:#fff;display:block;}
+.s-wait{background:#ff9800;color:#fff;display:block;}
 </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>🚪 Kapi Sistemi</h2>
-    <div class="status s-off" id="status">Bağlantı Bekleniyor...</div>
-    <button class="btn" id="openBtn" disabled>Kapıyı Aç</button>
+    <h2>📝 Site Sakini Kaydı</h2>
+    
+    <input type="text" id="adInput" placeholder="Ad Soyad">
+    <input type="text" id="telInput" placeholder="Telefon (5321234567)" maxlength="10">
+    
+    <div class="row">
+        <div class="col"><input type="number" id="blokInput" placeholder="Blok" value="1"></div>
+        <div class="col"><input type="number" id="daireInput" placeholder="Daire" value="1"></div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <select id="kapiSelect">
+                <option value="1">1. Kapı</option>
+                <option value="2">2. Kapı</option>
+                <option value="3">3. Kapı</option>
+                <option value="4">4. Kapı</option>
+            </select>
+        </div>
+        <div class="col">
+            <select id="rolSelect">
+                <option value="0">Sakin</option>
+                <option value="1">Personel</option>
+                <option value="2">Yönetici</option>
+            </select>
+        </div>
+    </div>
+    
+    <button id="kayitBtn" onclick="kayitOl()">Kaydı Tamamla</button>
+    
+    <div class="status" id="status"></div>
 </div>
-
-<div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script src="kapibus.js"></script>
@@ -34,19 +62,12 @@ h2{color:#667eea;margin-bottom:20px;}
 const urlParams = new URLSearchParams(window.location.search);
 const link = urlParams.get('l');
 const chipId = urlParams.get('id');
+const slot = parseInt(urlParams.get('s') || '0'); // Adminin gönderdiği linkteki slot
 
 let client = null;
 let didBase = null;
-let deviceID = null;
-let waitingForSeed = false;
-let waitingForAck = false;
-
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.style.display = 'block';
-    setTimeout(() => { t.style.display = 'none'; }, 3000);
-}
+let deviceIDHex = null;
+let waitingAck = false;
 
 function setStatus(cls, msg) {
     const s = document.getElementById('status');
@@ -57,99 +78,67 @@ function setStatus(cls, msg) {
 async function init() {
     if (!link || !chipId) {
         setStatus('s-off', 'Hata: Davetiye Linki eksik!');
+        document.getElementById('kayitBtn').disabled = true;
         return;
     }
 
-    // Cihaz ID Üret (32 Bit)
-    deviceID = Array.from(crypto.getRandomValues(new Uint8Array(4)));
-    const deviceIDHex = Kapibus.bytesToHex(deviceID);
-    
-    // DID_Base Üret (Telefon ve ESP arasında gizli anahtar)
+    // Cihaz ID ve DID_Base Üret (Telefon ve ESP arasında gizli anahtar)
+    const deviceID = Array.from(crypto.getRandomValues(new Uint8Array(4)));
+    deviceIDHex = Kapibus.bytesToHex(deviceID);
     didBase = await Kapibus.generateDIDBase(link, deviceIDHex);
-    console.log('DID_Base:', Kapibus.bytesToHex(didBase));
-
-    setStatus('s-off', 'Sunucuya Bağlanıyor...');
 
     client = mqtt.connect('wss://49de32fbb15f4b4ead7a5919fb255492.s1.eu.hivemq.cloud:8884/mqtt', {
-        clientId: 'web_' + Math.random().toString(36).substring(2),
+        clientId: 'web_reg_' + Math.random().toString(36).substring(2),
         username: 'ESP8266_buton',
         password: 'EDCrfv01'
     });
 
-    const topicYanit = `esp8266/kapi/${chipId}/yanit/${deviceIDHex}`;
-    const topicKomut = `esp8266/kapi/${chipId}/komut/${deviceIDHex}`;
+    const topicYanit = `esp8266/kapi/${chipId}/kayit/yanit/${deviceIDHex}`;
 
     client.on('connect', () => {
-        setStatus('s-ok', 'Sistem Hazır');
-        document.getElementById('openBtn').disabled = false;
         client.subscribe(topicYanit);
+        setStatus('s-ok', 'Sistem hazır. Bilgilerinizi girip kayıt olun.');
     });
 
-    client.on('message', async (topic, message) => {
+    client.on('message', (topic, message) => {
         const msgBytes = new Uint8Array(message);
-        
-        // 1. Seed (Soru) Geldi (8 Byte)
-        if (waitingForSeed && msgBytes.length === 8) {
-            waitingForSeed = false;
-            const seed = msgBytes.slice(0, 4);
-            
-            // MAC Doğrula
-            const receivedMac = msgBytes.slice(4, 8);
-            const calculatedMac = await Kapibus.generateMAC(didBase, seed, 4);
-            
-            let match = true;
-            for(let i=0; i<4; i++) {
-                if(calculatedMac[i] !== receivedMac[i]) { match = false; break; }
-            }
-
-            if (match) {
-                setStatus('s-wait', 'Kanıt Hesaplanıyor...');
-                const ntpTime = Math.floor(Date.now() / 1000);
-                const slot = 0; // NOT: Slot numarasını linkten veya kayıt formundan almamız gerekiyor. Şimdilik 0 varsayıyoruz.
-                
-                const proofPacket = await Kapibus.buildOpenProof(slot, seed, didBase, ntpTime);
-                client.publish(topicKomut, proofPacket);
-                waitingForAck = true;
-                setStatus('s-wait', 'Kapı Açılıyor...');
-            } else {
-                setStatus('s-off', 'Hata: Geçersiz Sunucu İmzası');
-            }
+        if (waitingAck && msgBytes.length === 1 && msgBytes[0] === 0x01) {
+            waitingAck = false;
+            setStatus('s-ok', 'Kayıt Başarılı! Artık kapıyı açabilirsiniz.');
+            document.getElementById('kayitBtn').disabled = true;
+        } else if (waitingAck && msgBytes.length === 1 && msgBytes[0] === 0x00) {
+            waitingAck = false;
+            setStatus('s-off', 'Kayıt Başarısız! Slot dolu veya hatalı.');
+            document.getElementById('kayitBtn').disabled = false;
         }
-        
-        // 2. ACK (Onay) Geldi (8 Byte)
-        else if (waitingForAck && msgBytes.length === 8) {
-            waitingForAck = false;
-            const ackCmd = await Kapibus.verifyAck(msgBytes, didBase);
-            
-            if (ackCmd === 0x04) {
-                setStatus('s-ok', 'Kapı Açıldı! ✅');
-                showToast('Kapı Açıldı!');
-                // Röle sesi simülasyonu
-                setTimeout(() => setStatus('s-ok', 'Sistem Hazır'), 3000);
-            } else if (ackCmd === 0x05) {
-                setStatus('s-off', 'REDDEDİLDİ! ❌');
-                showToast('Erişim Reddedildi.');
-            } else {
-                setStatus('s-off', 'Hata: Geçersiz Onay');
-            }
-        }
-    });
-
-    client.on('error', () => {
-        setStatus('s-off', 'Bağlantı Hatası!');
     });
 }
 
-document.getElementById('openBtn').addEventListener('click', async () => {
-    if (client && client.connected && !waitingForSeed && !waitingForAck) {
-        setStatus('s-wait', 'Soru İsteniyor...');
-        waitingForSeed = true;
-        
-        const topicKomut = `esp8266/kapi/${chipId}/komut/${Kapibus.bytesToHex(didBase)}`;
-        const reqPacket = await Kapibus.buildChallengeRequest(0, didBase); // Slot 0
-        client.publish(topicKomut, reqPacket);
+async function kayitOl() {
+    const ad = document.getElementById('adInput').value.trim();
+    const tel = document.getElementById('telInput').value.trim();
+    const blok = parseInt(document.getElementById('blokInput').value);
+    const daire = parseInt(document.getElementById('daireInput').value);
+    const kapi = parseInt(document.getElementById('kapiSelect').value);
+    const rol = parseInt(document.getElementById('rolSelect').value);
+
+    if(!ad || !tel || isNaN(blok) || isNaN(daire)) {
+        setStatus('s-off', 'Lütfen tüm alanları doldurun.');
+        return;
     }
-});
+
+    setStatus('s-wait', 'Kayıt şifreleniyor ve gönderiliyor...');
+    document.getElementById('kayitBtn').disabled = true;
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    
+    // 64 Byte'lık şifreli paketi üret
+    const packet = await Kapibus.buildRegisterPacket(slot, didBase, blok, daire, kapi, rol, tel, ad, timestamp);
+    
+    const topicKayit = `esp8266/kapi/${chipId}/kayit`;
+    client.publish(topicKayit, packet);
+    waitingAck = true;
+}
 
 // Başlat
 init();
