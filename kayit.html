@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Kayıt Ol</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
+body{background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+.box{background:#16213e;padding:30px;border-radius:16px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+h2{color:#667eea;margin-bottom:20px;}
+input, select{width:100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #444; background: #0f172a; color: #fff; font-size: 14px;}
+.row{display: flex; gap: 10px;}
+.col{flex: 1;}
+button{width: 100%; padding: 14px; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+button:disabled{opacity:0.5;}
+.status{padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none;}
+.s-ok{background:#4caf50;color:#fff;display:block;}
+.s-off{background:#f44336;color:#fff;display:block;}
+.s-wait{background:#ff9800;color:#fff;display:block;}
+</style>
+</head>
+<body>
+
+<div class="box">
+    <h2>📝 Site Sakini Kaydı</h2>
+    
+    <input type="text" id="adInput" placeholder="Ad Soyad">
+    <input type="text" id="telInput" placeholder="Telefon (5321234567)" maxlength="10">
+    
+    <div class="row">
+        <div class="col"><input type="number" id="blokInput" placeholder="Blok" value="1"></div>
+        <div class="col"><input type="number" id="daireInput" placeholder="Daire" value="1"></div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <select id="kapiSelect">
+                <option value="1">1. Kapı</option>
+                <option value="2">2. Kapı</option>
+                <option value="3">3. Kapı</option>
+                <option value="4">4. Kapı</option>
+            </select>
+        </div>
+        <div class="col">
+            <select id="rolSelect">
+                <option value="0">Sakin</option>
+                <option value="1">Personel</option>
+                <option value="2">Yönetici</option>
+            </select>
+        </div>
+    </div>
+    
+    <button id="kayitBtn" onclick="kayitOl()">Kaydı Tamamla</button>
+    
+    <div class="status" id="status"></div>
+</div>
+
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script src="kapibus.js"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const link = urlParams.get('l');
+const chipId = urlParams.get('id');
+const slot = parseInt(urlParams.get('s') || '0'); // Adminin gönderdiği linkteki slot
+
+let client = null;
+let didBase = null;
+let deviceIDHex = null;
+let waitingAck = false;
+
+function setStatus(cls, msg) {
+    const s = document.getElementById('status');
+    s.className = 'status ' + cls;
+    s.textContent = msg;
+}
+
+async function init() {
+    if (!link || !chipId) {
+        setStatus('s-off', 'Hata: Davetiye Linki eksik!');
+        document.getElementById('kayitBtn').disabled = true;
+        return;
+    }
+
+    // Cihaz ID ve DID_Base Üret (Telefon ve ESP arasında gizli anahtar)
+    const deviceID = Array.from(crypto.getRandomValues(new Uint8Array(4)));
+    deviceIDHex = Kapibus.bytesToHex(deviceID);
+    didBase = await Kapibus.generateDIDBase(link, deviceIDHex);
+
+    client = mqtt.connect('wss://49de32fbb15f4b4ead7a5919fb255492.s1.eu.hivemq.cloud:8884/mqtt', {
+        clientId: 'web_reg_' + Math.random().toString(36).substring(2),
+        username: 'ESP8266_buton',
+        password: 'EDCrfv01'
+    });
+
+    const topicYanit = `esp8266/kapi/${chipId}/kayit/yanit/${deviceIDHex}`;
+
+    client.on('connect', () => {
+        client.subscribe(topicYanit);
+        setStatus('s-ok', 'Sistem hazır. Bilgilerinizi girip kayıt olun.');
+    });
+
+    client.on('message', (topic, message) => {
+        const msgBytes = new Uint8Array(message);
+        if (waitingAck && msgBytes.length === 1 && msgBytes[0] === 0x01) {
+            waitingAck = false;
+            setStatus('s-ok', 'Kayıt Başarılı! Artık kapıyı açabilirsiniz.');
+            document.getElementById('kayitBtn').disabled = true;
+        } else if (waitingAck && msgBytes.length === 1 && msgBytes[0] === 0x00) {
+            waitingAck = false;
+            setStatus('s-off', 'Kayıt Başarısız! Slot dolu veya hatalı.');
+            document.getElementById('kayitBtn').disabled = false;
+        }
+    });
+}
+
+async function kayitOl() {
+    const ad = document.getElementById('adInput').value.trim();
+    const tel = document.getElementById('telInput').value.trim();
+    const blok = parseInt(document.getElementById('blokInput').value);
+    const daire = parseInt(document.getElementById('daireInput').value);
+    const kapi = parseInt(document.getElementById('kapiSelect').value);
+    const rol = parseInt(document.getElementById('rolSelect').value);
+
+    if(!ad || !tel || isNaN(blok) || isNaN(daire)) {
+        setStatus('s-off', 'Lütfen tüm alanları doldurun.');
+        return;
+    }
+
+    setStatus('s-wait', 'Kayıt şifreleniyor ve gönderiliyor...');
+    document.getElementById('kayitBtn').disabled = true;
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    
+    // 64 Byte'lık şifreli paketi üret
+    const packet = await Kapibus.buildRegisterPacket(slot, didBase, blok, daire, kapi, rol, tel, ad, timestamp);
+    
+    const topicKayit = `esp8266/kapi/${chipId}/kayit`;
+    client.publish(topicKayit, packet);
+    waitingAck = true;
+}
+
+// Başlat
+init();
+</script>
+</body>
+</html>
