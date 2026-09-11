@@ -62,6 +62,8 @@ button:disabled{opacity:0.5;cursor:not-allowed;}
             <select id="kapiSelect" class="sfi">
                 <option value="1">1. Kapı</option>
                 <option value="2">2. Kapı</option>
+                <option value="3">3. Kapı</option>
+                <option value="4">4. Kapı</option>
             </select>
         </div>
         <div class="col sfg">
@@ -69,6 +71,7 @@ button:disabled{opacity:0.5;cursor:not-allowed;}
             <select id="rolSelect" class="sfi">
                 <option value="0">Sakin</option>
                 <option value="1">Personel</option>
+                <option value="2">Yönetici</option>
             </select>
         </div>
     </div>
@@ -137,7 +140,6 @@ async function init() {
         }
     });
     
-    // Telefon numarası formatı
     document.getElementById('telInput').addEventListener('input', function() {
         this.value = this.value.replace(/[^0-9]/g, '');
     });
@@ -166,7 +168,6 @@ async function kayitOl() {
     client.publish(topicKayit, packet);
     waitingAck = true;
     
-    // Zaman aşımı: 10 saniye içinde cevap gelmezse uyar
     ackTimeout = setTimeout(() => {
         if (waitingAck) {
             setMsg('err', 'Sunucudan cevap alınamadı. ESP internete bağlı mı?');
