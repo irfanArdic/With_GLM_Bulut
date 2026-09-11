@@ -9,15 +9,22 @@
 body{background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
 .box{background:#16213e;padding:30px;border-radius:16px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
 h2{color:#667eea;margin-bottom:20px;}
-input, select{width:100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #444; background: #0f172a; color: #fff; font-size: 14px;}
-.row{display: flex; gap: 10px;}
-.col{flex: 1;}
-button{width: 100%; padding: 14px; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;}
-button:disabled{opacity:0.5;}
-.status{padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 15px; display: none;}
-.s-ok{background:#4caf50;color:#fff;display:block;}
-.s-off{background:#f44336;color:#fff;display:block;}
-.s-wait{background:#ff9800;color:#fff;display:block;}
+.sfg{margin-bottom:12px;text-align:left;}
+.sfl{font-size:11px;font-weight:700;color:#667eea;margin-bottom:4px;display:block;}
+.sfi{width:100%;padding:11px 13px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;font-family:inherit;background:#0f172a;color:#fff;}
+.sfi:focus{border-color:#667eea;}
+.tel-wrap{display:flex;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;transition:border .2s;}
+.tel-wrap:focus-within{border-color:#667eea;}
+.tel-prefix{background:#f5f5f5;color:#555;padding:11px 10px;font-size:15px;font-weight:700;border-right:1px solid #e5e7eb;white-space:nowrap;line-height:1;}
+.tel-inp{flex:1;padding:11px 10px;font-size:15px;border:none;outline:none;font-family:inherit;background:transparent;color:#fff;}
+.row{display:flex;gap:10px;}
+.col{flex:1;}
+button{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:11px;cursor:pointer;font-size:16px;font-weight:700;margin-top:6px;}
+button:disabled{opacity:0.5;cursor:not-allowed;}
+.msg{padding:10px 12px;border-radius:9px;font-size:13px;margin-top:12px;display:none;}
+.msg.err{background:#ffcdd2;color:#c62828;display:block;}
+.msg.ok{background:#c8e6c9;color:#1b5e20;display:block;}
+.msg.wait{background:#fff9c4;color:#f57f17;display:block;}
 </style>
 </head>
 <body>
@@ -25,35 +32,50 @@ button:disabled{opacity:0.5;}
 <div class="box">
     <h2>📝 Site Sakini Kaydı</h2>
     
-    <input type="text" id="adInput" placeholder="Ad Soyad">
-    <input type="text" id="telInput" placeholder="Telefon (5321234567)" maxlength="10">
+    <div class="sfg">
+        <label class="sfl">AD SOYAD</label>
+        <input type="text" id="adInput" class="sfi" placeholder="Adınızı girin">
+    </div>
     
+    <div class="sfg">
+        <label class="sfl">TELEFON NUMARASI</label>
+        <div class="tel-wrap">
+            <span class="tel-prefix">+90</span>
+            <input type="tel" id="telInput" class="tel-inp" maxlength="10" inputmode="numeric" placeholder="5xx xxx xx xx">
+        </div>
+    </div>
+
     <div class="row">
-        <div class="col"><input type="number" id="blokInput" placeholder="Blok" value="1"></div>
-        <div class="col"><input type="number" id="daireInput" placeholder="Daire" value="1"></div>
+        <div class="col sfg">
+            <label class="sfl">BLOK NO</label>
+            <input type="number" id="blokInput" class="sfi" value="1">
+        </div>
+        <div class="col sfg">
+            <label class="sfl">DAİRE NO</label>
+            <input type="number" id="daireInput" class="sfi" value="1">
+        </div>
     </div>
     
     <div class="row">
-        <div class="col">
-            <select id="kapiSelect">
+        <div class="col sfg">
+            <label class="sfl">KAPI</label>
+            <select id="kapiSelect" class="sfi">
                 <option value="1">1. Kapı</option>
                 <option value="2">2. Kapı</option>
-                <option value="3">3. Kapı</option>
-                <option value="4">4. Kapı</option>
             </select>
         </div>
-        <div class="col">
-            <select id="rolSelect">
+        <div class="col sfg">
+            <label class="sfl">ROL</label>
+            <select id="rolSelect" class="sfi">
                 <option value="0">Sakin</option>
                 <option value="1">Personel</option>
-                <option value="2">Yönetici</option>
             </select>
         </div>
     </div>
     
     <button id="kayitBtn" onclick="kayitOl()">Kaydı Tamamla</button>
     
-    <div class="status" id="status"></div>
+    <div class="msg" id="msg"></div>
 </div>
 
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
@@ -62,27 +84,27 @@ button:disabled{opacity:0.5;}
 const urlParams = new URLSearchParams(window.location.search);
 const link = urlParams.get('l');
 const chipId = urlParams.get('id');
-const slot = parseInt(urlParams.get('s') || '0'); // Adminin gönderdiği linkteki slot
+const slot = parseInt(urlParams.get('s') || '0');
 
 let client = null;
 let didBase = null;
 let deviceIDHex = null;
 let waitingAck = false;
+let ackTimeout = null;
 
-function setStatus(cls, msg) {
-    const s = document.getElementById('status');
-    s.className = 'status ' + cls;
-    s.textContent = msg;
+function setMsg(cls, txt) {
+    const m = document.getElementById('msg');
+    m.className = 'msg ' + cls;
+    m.textContent = txt;
 }
 
 async function init() {
     if (!link || !chipId) {
-        setStatus('s-off', 'Hata: Davetiye Linki eksik!');
+        setMsg('err', 'Hata: Davetiye Linki eksik!');
         document.getElementById('kayitBtn').disabled = true;
         return;
     }
 
-    // Cihaz ID ve DID_Base Üret (Telefon ve ESP arasında gizli anahtar)
     const deviceID = Array.from(crypto.getRandomValues(new Uint8Array(4)));
     deviceIDHex = Kapibus.bytesToHex(deviceID);
     didBase = await Kapibus.generateDIDBase(link, deviceIDHex);
@@ -97,20 +119,27 @@ async function init() {
 
     client.on('connect', () => {
         client.subscribe(topicYanit);
-        setStatus('s-ok', 'Sistem hazır. Bilgilerinizi girip kayıt olun.');
+        setMsg('ok', 'Sistem hazır. Bilgilerinizi girip kayıt olun.');
     });
 
     client.on('message', (topic, message) => {
         const msgBytes = new Uint8Array(message);
-        if (waitingAck && msgBytes.length === 1 && msgBytes[0] === 0x01) {
+        if (waitingAck && msgBytes.length === 1) {
+            clearTimeout(ackTimeout);
             waitingAck = false;
-            setStatus('s-ok', 'Kayıt Başarılı! Artık kapıyı açabilirsiniz.');
-            document.getElementById('kayitBtn').disabled = true;
-        } else if (waitingAck && msgBytes.length === 1 && msgBytes[0] === 0x00) {
-            waitingAck = false;
-            setStatus('s-off', 'Kayıt Başarısız! Slot dolu veya hatalı.');
-            document.getElementById('kayitBtn').disabled = false;
+            if (msgBytes[0] === 0x01) {
+                setMsg('ok', 'Kayıt Başarılı! Artık kapıyı açabilirsiniz.');
+                document.getElementById('kayitBtn').disabled = true;
+            } else {
+                setMsg('err', 'Kayıt Başarısız! Slot dolu veya hatalı.');
+                document.getElementById('kayitBtn').disabled = false;
+            }
         }
+    });
+    
+    // Telefon numarası formatı
+    document.getElementById('telInput').addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
     });
 }
 
@@ -123,24 +152,30 @@ async function kayitOl() {
     const rol = parseInt(document.getElementById('rolSelect').value);
 
     if(!ad || !tel || isNaN(blok) || isNaN(daire)) {
-        setStatus('s-off', 'Lütfen tüm alanları doldurun.');
+        setMsg('err', 'Lütfen tüm alanları eksiksiz doldurun.');
         return;
     }
 
-    setStatus('s-wait', 'Kayıt şifreleniyor ve gönderiliyor...');
+    setMsg('wait', 'Kayıt şifreleniyor ve gönderiliyor...');
     document.getElementById('kayitBtn').disabled = true;
 
     const timestamp = Math.floor(Date.now() / 1000);
-    
-    // 64 Byte'lık şifreli paketi üret
     const packet = await Kapibus.buildRegisterPacket(slot, didBase, blok, daire, kapi, rol, tel, ad, timestamp);
     
     const topicKayit = `esp8266/kapi/${chipId}/kayit`;
     client.publish(topicKayit, packet);
     waitingAck = true;
+    
+    // Zaman aşımı: 10 saniye içinde cevap gelmezse uyar
+    ackTimeout = setTimeout(() => {
+        if (waitingAck) {
+            setMsg('err', 'Sunucudan cevap alınamadı. ESP internete bağlı mı?');
+            document.getElementById('kayitBtn').disabled = false;
+            waitingAck = false;
+        }
+    }, 10000);
 }
 
-// Başlat
 init();
 </script>
 </body>
