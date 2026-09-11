@@ -2,42 +2,18 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bulut Yönetim Paneli</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bulut Admin Paneli (KapiBus)</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
 body{background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px;min-height:100vh;}
 .box{background:#16213e;padding:20px;border-radius:12px;width:100%;max-width:800px;margin-bottom:20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);}
 h2{margin-bottom:15px;color:#667eea;}
-input,select{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:1px solid #444;background:#0f172a;color:#fff;outline:none;}
-input:focus,select:focus{border-color:#667eea;}
-button{padding:10px 15px;background:#667eea;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin:5px 5px 5px 0;transition:0.2s;}
-button:disabled{opacity:0.5;cursor:not-allowed;}
-button:hover{background:#5568d3;}
-.btn-red{background:#f44336;} .btn-red:hover{background:#d32f2f;}
-.btn-green{background:#4caf50;} .btn-green:hover{background:#388e3c;}
-.btn-gray{background:#555;} .btn-gray:hover{background:#444;}
-.kart{background:#fff;color:#000;border-radius:8px;padding:12px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-.kart-info{display:flex;align-items:center;gap:10px;}
-.kno{font-weight:bold;color:#667eea;min-width:50px;}
-.kad{font-weight:bold;}
-.ktel{font-size:13px;color:#555;}
-.dot{width:11px;height:11px;border-radius:50%;}
-.dok{background:#4caf50;box-shadow:0 0 4px #4caf50;}
-.dbs{background:#bbb;}
-.dy{background:#ff9800;box-shadow:0 0 4px #ff9800;}
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);justify-content:center;align-items:center;z-index:100;}
-.modal-content{background:#fff;color:#000;padding:25px;border-radius:12px;width:90%;max-width:450px;position:relative;}
-.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;border-bottom:1px solid #eee;padding-bottom:10px;}
-.mrow{display:flex;gap:10px;margin-bottom:10px;}
-.mcol{flex:1;}
-.mcol label{font-size:10px;font-weight:bold;color:#667eea;display:block;margin-bottom:3px;}
-.mcol input, .mcol select{margin:0;padding:8px;border:1px solid #ccc;border-radius:6px;}
-.inv-box{background:#f3f4f6;padding:10px;border-radius:8px;margin:10px 0;}
-.inv-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
-.inv-row span{font-size:11px;font-weight:bold;color:#2e7d32;width:70px;white-space:nowrap;}
-.inv-row input{flex:1;margin:0;background:#1e1e2e;color:#69f0ae;font-family:monospace;padding:8px;border:none;border-radius:6px;}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:8px;z-index:9999;font-size:14px;display:none;}
+input{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:1px solid #444;background:#0f172a;color:#fff;}
+button{padding:10px 15px;background:#667eea;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin:5px 0;}
+button:disabled{opacity:0.5;}
+.kart{background:#fff;color:#000;border-radius:8px;padding:12px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;}
+.link-box{background:#4caf50;color:#fff;padding:10px;border-radius:6px;margin-top:10px;word-break:break-all;font-family:monospace;font-size:12px;display:none;}
 </style>
 </head>
 <body>
@@ -53,86 +29,22 @@ button:hover{background:#5568d3;}
 <div class="box" id="panelBox" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
         <h2 id="sysTitle" style="margin:0;">Yükleniyor...</h2>
-        <div style="display:flex;gap:5px;">
-            <button class="btn-green" onclick="findEmptySlot()">➕ Yeni Kullanıcı Ekle</button>
-            <button onclick="getList(currentStart)">🔄 Yenile</button>
-        </div>
+        <button onclick="generateInvite()">➕ Davetiye Üret (Slot 1)</button>
     </div>
-    <div id="userList"></div>
-    <div style="text-align:center;margin-top:15px;">
-        <button class="btn-gray" onclick="getList(currentStart - 8)" id="prevBtn">⬅ Geri</button>
-        <button class="btn-gray" onclick="getList(currentStart + 8)" id="nextBtn">İleri ➡</button>
-    </div>
+    <div id="inviteBox" class="link-box"></div>
 </div>
-
-<div class="modal" id="userModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="mSlot" style="color:#667eea;">#0001</h3>
-            <span id="mAd" style="font-weight:bold;"></span>
-        </div>
-        
-        <div class="mrow">
-            <div class="mcol"><label id="lblLok1">BLOK</label><select id="mLok1"></select></div>
-            <div class="mcol"><label id="lblLok2">DAIRE</label><select id="mLok2"></select></div>
-        </div>
-        <div class="mrow">
-            <div class="mcol"><label>KAPI</label><select id="mKapi"><option value="1">1. Kapı</option><option value="2">2. Kapı</option><option value="3">3. Kapı</option><option value="4">4. Kapı</option></select></div>
-            <div class="mcol"><label>ROL</label><select id="mRol"><option value="0">Sakin</option><option value="1">Personel</option><option value="2">Yönetici</option></select></div>
-        </div>
-        
-        <input type="text" id="mTel" placeholder="Telefon (532...)" maxlength="13">
-        
-        <div style="display:flex;align-items:center;gap:5px;margin:10px 0;">
-            <input type="checkbox" id="mSuresiz" checked onclick="document.getElementById('mTarih').disabled=this.checked;">
-            <label for="mSuresiz" style="font-size:12px;cursor:pointer;">Süresiz (Daire Sahibi)</label>
-        </div>
-        <input type="date" id="mTarih" disabled>
-        
-        <div class="inv-box">
-            <div class="inv-row"><span>KAYIT LİNKİ:</span><input type="text" id="mLink" readonly placeholder="Link Oluştur'a basın"></div>
-        </div>
-        
-        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-top:15px;">
-            <button class="btn-green" onclick="generateLink()">🔗 Link Oluştur</button>
-            <button class="btn-green" onclick="saveInvite()">💾 Kaydet</button>
-            <button class="btn-red" onclick="deleteUser()">🗑️ Sil</button>
-            <button class="btn-gray" onclick="closeModal()">✖ Kapat</button>
-        </div>
-    </div>
-</div>
-
-<div id="toast" class="toast"></div>
 
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script src="kapibus.js"></script>
 <script>
 let client = null;
 let chipId = "";
 let adminPass = "";
-let reqId = 0;
-let currentStart = 0;
-let currentSlot = -1;
-let pendingAction = null;
-let lastList = [];
-let currentTopo = {blok: 1, daire: 1}; // Varsayılan
-
-async function sha256(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.style.display = 'block';
-    setTimeout(() => { t.style.display = 'none'; }, 3000);
-}
 
 function connectMQTT() {
     chipId = document.getElementById('chipIdInput').value.trim();
     adminPass = document.getElementById('passInput').value.trim();
-    if(!chipId || !adminPass) { showToast("ID ve Şifre girin!"); return; }
+    if(!chipId || !adminPass) { alert("ID ve Şifre girin!"); return; }
 
     document.getElementById('panelBox').style.display = 'block';
     document.getElementById('loginBox').style.display = 'none';
@@ -146,172 +58,27 @@ function connectMQTT() {
 
     client.on('connect', () => {
         document.getElementById('sysTitle').innerText = "Bağlandı: " + chipId;
-        client.subscribe('esp8266/kapi/' + chipId + '/admin/yanit/#');
-        getTopology(); // Önce topolojiyi çek
-        getList(0);    // Sonra listeyi çek
+        // ESP'nin Admin yanıt topic'ini dinle
+        client.subscribe(`esp8266/kapi/${chipId}/admin/yanit/#`);
     });
 
     client.on('message', (topic, message) => {
-        try {
-            const data = JSON.parse(message.toString());
-            handleResponse(data);
-        } catch(e) {}
+        const msgBytes = new Uint8Array(message);
+        // Eğer gelen mesaj 16 Byte ise ve Davetiye Linki ise
+        if(msgBytes.length === 16) {
+            const link = new TextDecoder().decode(msgBytes);
+            document.getElementById('inviteBox').style.display = 'block';
+            document.getElementById('inviteBox').innerHTML = "Davetiye Linki:<br>" + `https://irfanardic.github.io/With_GLM_Bulut/kayit.html?l=${link}&id=${chipId}&s=1`;
+        }
     });
 }
 
-async function sendCommand(cmdObj, action) {
-    pendingAction = action;
-    const ts = Math.floor(Date.now() / 1000);
-    const auth = await sha256(adminPass + ts);
-    cmdObj.ts = ts;
-    cmdObj.auth = auth;
-    cmdObj.reqId = (++reqId).toString();
-    client.publish('esp8266/kapi/' + chipId + '/admin/komut', JSON.stringify(cmdObj));
+async function generateInvite() {
+    // 0x10 = Davetiye Üret Komutu, Slot 1 için
+    const packet = await Kapibus.buildAdminPacket(0x10, 1, adminPass);
+    // ESP'nin Admin komut topic'ine yolla
+    client.publish(`esp8266/kapi/${chipId}/admin/komut`, packet);
 }
-
-function updateLabels(modu) {
-    let l1 = 'BLOK', l2 = 'DAIRE';
-    if(modu == 1) { l1 = 'KAT'; l2 = 'ODA'; }
-    else if(modu == 2) { l1 = 'BÖLGE'; l2 = 'OFIS NO'; }
-    else if(modu == 3) { l1 = 'BÖLGE'; l2 = 'PARK NO'; }
-    document.getElementById('lblLok1').innerText = l1;
-    document.getElementById('lblLok2').innerText = l2;
-}
-
-function handleResponse(data) {
-    if(pendingAction === 'topology') {
-        currentTopo = data;
-        updateLabels(data.modu);
-        // Dropdown'ları doldur
-        let blokSelect = document.getElementById('mLok1');
-        let daireSelect = document.getElementById('mLok2');
-        blokSelect.innerHTML = '';
-        daireSelect.innerHTML = '';
-        for(let i=1; i<=data.blok; i++) blokSelect.innerHTML += `<option value="${i}">${i}. ${document.getElementById('lblLok1').innerText}</option>`;
-        for(let i=1; i<=data.daire; i++) daireSelect.innerHTML += `<option value="${i}">${i}</option>`;
-    }
-    else if(pendingAction === 'list' && Array.isArray(data)) {
-        lastList = data;
-        let h = "";
-        if(data.length === 0) h = "<div style='text-align:center;color:#aaa;'>Kullanıcı bulunamadı.</div>";
-        data.forEach(u => {
-            let dc = u.aktif ? (u.kayitli ? 'dok' : 'dy') : 'dbs';
-            let adStr = u.ad ? u.ad : 'Boş Slot';
-            let btnText = u.aktif ? "Düzenle" : "Ekle";
-            let btnClass = u.aktif ? "" : "btn-green";
-            h += `<div class='kart'><div class='kart-info'><div class='dot ${dc}'></div><div class='kno'>#${String(u.slot+1).padStart(4,'0')}</div><div><div class='kad'>${adStr}</div><div class='ktel'>${u.tel ? '+90'+u.tel : ''}</div></div></div><button class='${btnClass}' onclick='openModal(${u.slot})'>${btnText}</button></div>`;
-        });
-        document.getElementById('userList').innerHTML = h;
-        document.getElementById('prevBtn').disabled = currentStart === 0;
-        document.getElementById('nextBtn').disabled = data.length < 8;
-    } 
-    else if(pendingAction === 'user' && !Array.isArray(data)) {
-        currentSlot = data.slot !== undefined ? data.slot : currentSlot;
-        document.getElementById('mSlot').innerText = '#' + String(currentSlot+1).padStart(4,'0');
-        document.getElementById('mAd').innerText = data.ad && data.ad !== '(Davet Bekliyor)' ? data.ad : (data.rezerve ? 'Davet Bekliyor' : 'Boş Slot');
-        document.getElementById('mTel').value = data.tel || "";
-        
-        // Topoloji bilgisine göre dropdown değerlerini ayarla
-        if(data.lok1 !== undefined && data.lok1 < currentTopo.blok) document.getElementById('mLok1').value = data.lok1;
-        if(data.lok2 !== undefined && data.lok2 <= currentTopo.daire) document.getElementById('mLok2').value = data.lok2;
-        if(data.kapi !== undefined) document.getElementById('mKapi').value = data.kapi;
-        if(data.rol !== undefined) document.getElementById('mRol').value = data.rol;
-        
-        let suresiz = (data.yil == 127);
-        document.getElementById('mSuresiz').checked = suresiz;
-        document.getElementById('mTarih').disabled = suresiz;
-        if(!suresiz && data.gun) {
-            document.getElementById('mTarih').value = (2000+data.yil) + '-' + String(data.ay).padStart(2,'0') + '-' + String(data.gun).padStart(2,'0');
-        }
-        
-        document.getElementById('mLink').value = data.fullLink || "";
-    }
-    else if(pendingAction === 'generate' && data.link) {
-        document.getElementById('mLink').value = data.link;
-        showToast("Link oluşturuldu. Kaydet'e basın.");
-    }
-    else if(pendingAction === 'save') {
-        showToast(data.ok ? "Kaydetme başarılı!" : (data.mesaj || "Hata!"));
-        if(data.ok) { closeModal(); getList(currentStart); }
-    }
-    else if(pendingAction === 'delete') {
-        showToast(data.ok ? "Silme başarılı!" : "Hata!");
-        if(data.ok) { closeModal(); getList(currentStart); }
-    }
-    pendingAction = null;
-}
-
-function getTopology() { sendCommand({cmd:"get_topology"}, 'topology'); }
-function getList(start) {
-    if(start < 0) start = 0;
-    currentStart = start;
-    sendCommand({cmd:"get_list", start:start, count:8}, 'list');
-}
-
-function findEmptySlot() {
-    let emptySlot = lastList.find(u => !u.aktif);
-    if(emptySlot) {
-        openModal(emptySlot.slot);
-    } else {
-        showToast("Bu sayfada boş slot yok, sonraki sayfaya geçiliyor...");
-        getList(currentStart + 8);
-        setTimeout(() => {
-            emptySlot = lastList.find(u => !u.aktif);
-            if(emptySlot) openModal(emptySlot.slot);
-        }, 2000);
-    }
-}
-
-function openModal(slot) {
-    currentSlot = slot;
-    document.getElementById('userModal').style.display = 'flex';
-    document.getElementById('mLink').value = "";
-    sendCommand({cmd:"get_user", i:slot}, 'user');
-}
-
-function generateLink() {
-    sendCommand({cmd:"invite_generate"}, 'generate');
-}
-
-async function saveInvite() {
-    let tel = document.getElementById('mTel').value.trim();
-    if(tel.length < 10) { showToast("Geçerli bir telefon girin!"); return; }
-    if(!document.getElementById('mLink').value) { showToast("Önce link oluşturun!"); return; }
-
-    let gun=31, ay=12, yil=127;
-    if(!document.getElementById('mSuresiz').checked) {
-        let t = document.getElementById('mTarih').value;
-        if(!t) { showToast("Tarih seçin!"); return; }
-        let p = t.split('-');
-        yil = parseInt(p[0]) - 2000;
-        ay = parseInt(p[1]);
-        gun = parseInt(p[2]);
-    }
-
-    sendCommand({
-        cmd:"invite_save",
-        i: currentSlot,
-        link: document.getElementById('mLink').value,
-        tel: tel,
-        lok1: document.getElementById('mLok1').value,
-        lok2: document.getElementById('mLok2').value,
-        kapi: document.getElementById('mKapi').value,
-        rol: document.getElementById('mRol').value,
-        basSaat: 255, 
-        bitSaat: 255, 
-        gun: gun, 
-        ay: ay, 
-        yil: yil
-    }, 'save');
-}
-
-function deleteUser() {
-    if(confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) {
-        sendCommand({cmd:"delete_user", i: currentSlot}, 'delete');
-    }
-}
-
-function closeModal() { document.getElementById('userModal').style.display = 'none'; }
 </script>
 </body>
 </html>
