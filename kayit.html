@@ -5,70 +5,67 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Kayıt Ol</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
-body{background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
-.box{background:#16213e;padding:30px;border-radius:16px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
-h2{color:#667eea;margin-bottom:20px;}
-.sfg{margin-bottom:12px;text-align:left;}
-.sfl{font-size:11px;font-weight:700;color:#667eea;margin-bottom:4px;display:block;}
-.sfi{width:100%;padding:11px 13px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;font-family:inherit;background:#0f172a;color:#fff;}
-.sfi:focus{border-color:#667eea;}
-.tel-wrap{display:flex;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;transition:border .2s;}
-.tel-wrap:focus-within{border-color:#667eea;}
-.tel-prefix{background:#f5f5f5;color:#555;padding:11px 10px;font-size:15px;font-weight:700;border-right:1px solid #e5e7eb;white-space:nowrap;line-height:1;}
-.tel-inp{flex:1;padding:11px 10px;font-size:15px;border:none;outline:none;font-family:inherit;background:transparent;color:#fff;}
-.row{display:flex;gap:10px;}
-.col{flex:1;}
-button{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:11px;cursor:pointer;font-size:16px;font-weight:700;margin-top:6px;}
-button:disabled{opacity:0.5;cursor:not-allowed;}
-.msg{padding:10px 12px;border-radius:9px;font-size:13px;margin-top:12px;display:none;}
-.msg.err{background:#ffcdd2;color:#c62828;display:block;}
-.msg.ok{background:#c8e6c9;color:#1b5e20;display:block;}
-.msg.wait{background:#fff9c4;color:#f57f17;display:block;}
+body { font-family: Arial, sans-serif; background: #1a1a2e; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+.box { background: #16213e; padding: 30px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+h2 { color: #667eea; text-align: center; margin-bottom: 20px; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-size: 12px; color: #aaa; }
+input, select { width: 100%; padding: 12px; border: 1px solid #333; background: #0f172a; color: #fff; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+input:focus { border-color: #667eea; outline: none; }
+.row { display: flex; gap: 10px; }
+.col { flex: 1; }
+button { width: 100%; padding: 14px; background: #667eea; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+button:disabled { background: #555; cursor: not-allowed; }
+.status { padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-weight: bold; display: none; }
+.s-ok { background: #4caf50; color: white; display: block; }
+.s-err { background: #f44336; color: white; display: block; }
+.s-wait { background: #ff9800; color: white; display: block; }
+.tel-wrap { display: flex; align-items: center; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+.tel-prefix { background: #333; padding: 12px; font-weight: bold; color: #aaa; }
+.tel-wrap input { border: none; border-radius: 0; }
 </style>
 </head>
 <body>
-
 <div class="box">
     <h2>📝 Site Sakini Kaydı</h2>
     
-    <div class="sfg">
-        <label class="sfl">AD SOYAD</label>
-        <input type="text" id="adInput" class="sfi" placeholder="Adınızı girin">
+    <div class="form-group">
+        <label>AD SOYAD</label>
+        <input type="text" id="adInput" placeholder="Adınız ve soyadınızı girin">
     </div>
     
-    <div class="sfg">
-        <label class="sfl">TELEFON NUMARASI</label>
+    <div class="form-group">
+        <label>TELEFON NUMARASI</label>
         <div class="tel-wrap">
             <span class="tel-prefix">+90</span>
-            <input type="tel" id="telInput" class="tel-inp" maxlength="10" inputmode="numeric" placeholder="5xx xxx xx xx">
+            <input type="tel" id="telInput" maxlength="10" placeholder="5xx xxx xx xx">
         </div>
     </div>
 
     <div class="row">
-        <div class="col sfg">
-            <label class="sfl">BLOK NO</label>
-            <input type="number" id="blokInput" class="sfi" value="1">
+        <div class="col form-group">
+            <label>BLOK NO</label>
+            <input type="number" id="blokInput" value="1" min="1">
         </div>
-        <div class="col sfg">
-            <label class="sfl">DAİRE NO</label>
-            <input type="number" id="daireInput" class="sfi" value="1">
+        <div class="col form-group">
+            <label>DAİRE NO</label>
+            <input type="number" id="daireInput" value="1" min="1">
         </div>
     </div>
     
     <div class="row">
-        <div class="col sfg">
-            <label class="sfl">KAPI</label>
-            <select id="kapiSelect" class="sfi">
+        <div class="col form-group">
+            <label>KAPI</label>
+            <select id="kapiSelect">
                 <option value="1">1. Kapı</option>
                 <option value="2">2. Kapı</option>
                 <option value="3">3. Kapı</option>
                 <option value="4">4. Kapı</option>
             </select>
         </div>
-        <div class="col sfg">
-            <label class="sfl">ROL</label>
-            <select id="rolSelect" class="sfi">
+        <div class="col form-group">
+            <label>ROL</label>
+            <select id="rolSelect">
                 <option value="0">Sakin</option>
                 <option value="1">Personel</option>
                 <option value="2">Yönetici</option>
@@ -78,7 +75,7 @@ button:disabled{opacity:0.5;cursor:not-allowed;}
     
     <button id="kayitBtn" onclick="kayitOl()">Kaydı Tamamla</button>
     
-    <div class="msg" id="msg"></div>
+    <div class="status" id="status"></div>
 </div>
 
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
@@ -95,15 +92,15 @@ let deviceIDHex = null;
 let waitingAck = false;
 let ackTimeout = null;
 
-function setMsg(cls, txt) {
-    const m = document.getElementById('msg');
-    m.className = 'msg ' + cls;
-    m.textContent = txt;
+function setStatus(cls, msg) {
+    const s = document.getElementById('status');
+    s.className = 'status ' + cls;
+    s.textContent = msg;
 }
 
 async function init() {
     if (!link || !chipId) {
-        setMsg('err', 'Hata: Davetiye Linki eksik!');
+        setStatus('s-err', 'Hata: Davetiye Linki eksik!');
         document.getElementById('kayitBtn').disabled = true;
         return;
     }
@@ -122,7 +119,7 @@ async function init() {
 
     client.on('connect', () => {
         client.subscribe(topicYanit);
-        setMsg('ok', 'Sistem hazır. Bilgilerinizi girip kayıt olun.');
+        setStatus('s-ok', 'Sistem hazır. Lütfen bilgilerinizi girip kayıt olun.');
     });
 
     client.on('message', (topic, message) => {
@@ -131,10 +128,10 @@ async function init() {
             clearTimeout(ackTimeout);
             waitingAck = false;
             if (msgBytes[0] === 0x01) {
-                setMsg('ok', 'Kayıt Başarılı! Artık kapıyı açabilirsiniz.');
+                setStatus('s-ok', 'Kayıt Başarılı! Artık kapıyı açabilirsiniz.');
                 document.getElementById('kayitBtn').disabled = true;
             } else {
-                setMsg('err', 'Kayıt Başarısız! Slot dolu veya hatalı.');
+                setStatus('s-err', 'Kayıt Başarısız! Slot dolu veya hatalı.');
                 document.getElementById('kayitBtn').disabled = false;
             }
         }
@@ -154,11 +151,11 @@ async function kayitOl() {
     const rol = parseInt(document.getElementById('rolSelect').value);
 
     if(!ad || !tel || isNaN(blok) || isNaN(daire)) {
-        setMsg('err', 'Lütfen tüm alanları eksiksiz doldurun.');
+        setStatus('s-err', 'Lütfen tüm alanları eksiksiz doldurun.');
         return;
     }
 
-    setMsg('wait', 'Kayıt şifreleniyor ve gönderiliyor...');
+    setStatus('s-wait', 'Kayıt şifreleniyor ve gönderiliyor...');
     document.getElementById('kayitBtn').disabled = true;
 
     const timestamp = Math.floor(Date.now() / 1000);
@@ -170,7 +167,7 @@ async function kayitOl() {
     
     ackTimeout = setTimeout(() => {
         if (waitingAck) {
-            setMsg('err', 'Sunucudan cevap alınamadı. ESP internete bağlı mı?');
+            setStatus('s-err', 'Sunucudan cevap alınamadı. ESP internete bağlı mı?');
             document.getElementById('kayitBtn').disabled = false;
             waitingAck = false;
         }
